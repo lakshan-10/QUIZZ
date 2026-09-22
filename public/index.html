@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Live Quiz Competition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- SCREEN 1: REGISTRATION -->
+    <div id="screen-register" class="screen active">
+      <div class="card auth-card">
+        <div class="brand-header">
+          <div class="logo-icon">⚡</div>
+          <h1>LIVE QUIZ COMPETITION</h1>
+          <p class="subtitle">Digital Answer Sheet for Participants</p>
+        </div>
+
+        <form id="form-register" onsubmit="event.preventDefault(); handleRegister();">
+          <div class="form-group">
+            <label for="reg-name">Participant Name</label>
+            <input type="text" id="reg-name" placeholder="Enter your full name" required autocomplete="off">
+          </div>
+
+          <div class="form-group">
+            <label for="reg-id">Participant ID / Roll Number</label>
+            <input type="text" id="reg-id" placeholder="e.g. P027 or 21CS045" required autocomplete="off">
+          </div>
+
+          <div id="reg-error" class="error-msg" style="display: none;"></div>
+
+          <button type="submit" id="btn-join" class="btn btn-primary btn-block">
+            JOIN QUIZ →
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: QUIZ ANSWER SHEET -->
+    <div id="screen-quiz" class="screen">
+      <!-- Header Bar -->
+      <header class="quiz-header">
+        <div class="user-badge">
+          <span class="user-name" id="user-display-name">Participant</span>
+          <span class="user-id" id="user-display-id">ID: ---</span>
+        </div>
+        <div class="header-right">
+          <span id="sync-status" class="sync-badge sync-saved">✓ Saved</span>
+          <span class="progress-pill"><strong id="answered-count">0</strong> / 80 Answered</span>
+        </div>
+      </header>
+
+      <!-- Category Navigation Tabs -->
+      <div class="category-tabs">
+        <button class="cat-tab active" data-round="1" onclick="jumpToCategory(1)">
+          <span class="cat-round">ROUND 1</span>
+          <span class="cat-name">Guess the Brand</span>
+          <span class="cat-range">Q1–Q20</span>
+        </button>
+        <button class="cat-tab" data-round="2" onclick="jumpToCategory(21)">
+          <span class="cat-round">ROUND 2</span>
+          <span class="cat-name">Guess the Person</span>
+          <span class="cat-range">Q21–Q40</span>
+        </button>
+        <button class="cat-tab" data-round="3" onclick="jumpToCategory(41)">
+          <span class="cat-round">ROUND 3</span>
+          <span class="cat-name">Identify the Logo</span>
+          <span class="cat-range">Q41–Q60</span>
+        </button>
+        <button class="cat-tab" data-round="4" onclick="jumpToCategory(61)">
+          <span class="cat-round">ROUND 4</span>
+          <span class="cat-name">Identify the Tagline</span>
+          <span class="cat-range">Q61–Q80</span>
+        </button>
+      </div>
+
+      <!-- Quiz Status Notice Bar -->
+      <div id="quiz-notice-bar" class="notice-bar" style="display: none;"></div>
+
+      <!-- Question Card -->
+      <main class="question-container">
+        <div class="question-card">
+          <div class="question-meta">
+            <span class="q-round-label" id="current-round-title">ROUND 1 — GUESS THE BRAND</span>
+            <span class="q-number-title" id="current-q-title">QUESTION 1</span>
+          </div>
+
+          <div class="ppt-hint-box">
+            <span class="hint-icon">📺</span> Look at the PowerPoint Projector screen for question & image
+          </div>
+
+          <div class="input-area">
+            <label for="answer-input">Type your answer below:</label>
+            <input 
+              type="text" 
+              id="answer-input" 
+              class="answer-input-box" 
+              placeholder="Type your answer here..." 
+              autocomplete="off" 
+              autocorrect="off" 
+              autocapitalize="off"
+            >
+          </div>
+
+          <div class="nav-controls">
+            <button id="btn-prev" class="btn btn-secondary" onclick="navigateQuestion(-1)">
+              ← Previous
+            </button>
+            <button id="btn-next" class="btn btn-primary" onclick="navigateQuestion(1)">
+              Next →
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <!-- Compact Question Grid Navigator -->
+      <section class="grid-section">
+        <div class="grid-header">
+          <h3>Question Navigator</h3>
+          <div class="grid-legend">
+            <span class="legend-item"><span class="dot dot-unanswered"></span> Unanswered</span>
+            <span class="legend-item"><span class="dot dot-answered"></span> Answered</span>
+            <span class="legend-item"><span class="dot dot-current"></span> Current</span>
+          </div>
+        </div>
+        <div id="question-grid" class="question-grid"></div>
+      </section>
+
+      <!-- Submit Section -->
+      <footer class="submit-footer">
+        <button class="btn btn-success btn-block btn-lg" onclick="openSubmitModal()">
+          SUBMIT FINAL ANSWERS 🏁
+        </button>
+      </footer>
+    </div>
+
+    <!-- SCREEN 3: QUIZ SUBMITTED (RESULTS HIDDEN) -->
+    <div id="screen-submitted" class="screen">
+      <div class="card submitted-card">
+        <div class="submitted-icon">🎉</div>
+        <h2>QUIZ SUBMITTED SUCCESSFULLY</h2>
+        <p class="submitted-msg">Your answers have been recorded.</p>
+        <div class="submitted-info">
+          <p>Participant Name: <strong id="sub-display-name">---</strong></p>
+          <p>Participant ID: <strong id="sub-display-id">---</strong></p>
+        </div>
+        <div class="waiting-box">
+          <div class="spinner"></div>
+          <p>Results will be displayed when the organizer releases them.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: RESULTS SCREEN (RESULTS RELEASED) -->
+    <div id="screen-results" class="screen">
+      <div class="card results-card">
+        <div class="results-header">
+          <h2>QUIZ COMPLETED</h2>
+          <p class="user-detail">
+            Participant Name: <strong id="res-user-name">---</strong><br>
+            Participant ID: <strong id="res-user-id">---</strong>
+          </p>
+        </div>
+
+        <div class="score-banner">
+          <span class="score-label">YOUR FINAL SCORE</span>
+          <div class="score-val"><span id="res-total-score">0</span> <span class="score-max">/ 80</span></div>
+          <div class="score-percent" id="res-score-percent">0%</div>
+        </div>
+
+        <h3>Answer Review</h3>
+        <div class="table-responsive">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Question</th>
+                <th>Your Answer</th>
+                <th>Correct Answer</th>
+                <th>Marks</th>
+              </tr>
+            </thead>
+            <tbody id="results-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SUBMIT CONFIRMATION MODAL -->
+  <div id="modal-submit" class="modal-overlay" style="display: none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Confirm Quiz Submission</h3>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to submit your quiz?</p>
+        <div class="summary-stat-box">
+          <div class="stat-item stat-green">
+            <span class="stat-num" id="modal-answered-count">0</span>
+            <span class="stat-lbl">Answered</span>
+          </div>
+          <div class="stat-item stat-grey">
+            <span class="stat-num" id="modal-unanswered-count">0</span>
+            <span class="stat-lbl">Unanswered</span>
+          </div>
+        </div>
+        <p class="modal-warning">⚠️ Once submitted, you cannot change or edit any answers!</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeSubmitModal()">GO BACK</button>
+        <button class="btn btn-success" onclick="confirmFinalSubmission()">SUBMIT FINAL ANSWERS</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

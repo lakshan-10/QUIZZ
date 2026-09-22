@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — Live Quiz Competition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <!-- ADMIN LOGIN OVERLAY -->
+  <div id="admin-login-overlay" class="login-overlay">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="shield-icon">🛡️</div>
+        <h2>ADMIN PORTAL</h2>
+        <p>Live Quiz Control & Leaderboard</p>
+      </div>
+
+      <form id="admin-login-form" onsubmit="event.preventDefault(); handleAdminLogin();">
+        <div class="form-group">
+          <label for="admin-user">Username</label>
+          <input type="text" id="admin-user" value="admin" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="admin-pass">Password</label>
+          <input type="password" id="admin-pass" value="admin123" required>
+        </div>
+        <div id="admin-login-error" class="error-msg" style="display: none;"></div>
+        <button type="submit" class="btn btn-primary btn-block">LOGIN TO DASHBOARD</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN ADMIN DASHBOARD -->
+  <div id="admin-dashboard" class="admin-layout" style="display: none;">
+    
+    <!-- TOP BAR -->
+    <header class="admin-topbar">
+      <div class="topbar-brand">
+        <span class="brand-icon">⚡</span>
+        <h1>QUIZ ADMIN DASHBOARD</h1>
+        <span id="quiz-status-badge" class="status-badge status-not-started">NOT STARTED</span>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn btn-sm btn-secondary" onclick="exportData('csv')">📥 Export CSV</button>
+        <button class="btn btn-sm btn-secondary" onclick="exportData('excel')">📊 Export Excel</button>
+        <button class="btn btn-sm btn-warning" onclick="handleResetDatabase()">🧹 Reset Database</button>
+        <button class="btn btn-sm btn-danger" onclick="handleAdminLogout()">Logout</button>
+      </div>
+    </header>
+
+    <!-- LIVE CONTROL PANEL -->
+    <section class="controls-panel card">
+      <div class="panel-header">
+        <h3>Live Quiz Controls</h3>
+        <span class="pulse-indicator">● LIVE SYNC</span>
+      </div>
+
+      <div class="control-btn-grid">
+        <button id="btn-start" class="btn btn-success" onclick="triggerQuizControl('START')">▶ START QUIZ</button>
+        <button id="btn-pause" class="btn btn-warning" onclick="triggerQuizControl('PAUSE')">⏸ PAUSE QUIZ</button>
+        <button id="btn-resume" class="btn btn-primary" onclick="triggerQuizControl('RESUME')">▶ RESUME QUIZ</button>
+        <button id="btn-end" class="btn btn-danger" onclick="triggerQuizControl('END')">⏹ END QUIZ</button>
+        
+        <div class="control-divider"></div>
+        
+        <button id="btn-show-results" class="btn btn-purple" onclick="triggerQuizControl('SHOW_RESULTS')">🔓 SHOW RESULTS</button>
+        <button id="btn-hide-results" class="btn btn-secondary" onclick="triggerQuizControl('HIDE_RESULTS')">🔒 HIDE RESULTS</button>
+      </div>
+    </section>
+
+    <!-- SHAREABLE STUDENT QUIZ LINK CARD -->
+    <section class="share-panel card">
+      <div class="share-header">
+        <div class="share-title-group">
+          <span class="share-badge-icon">🌐</span>
+          <div>
+            <h4>Public Student Quiz Link</h4>
+            <p class="share-subtitle">Share this URL with students so they can join and answer questions</p>
+          </div>
+        </div>
+        <div class="share-top-actions">
+          <button class="btn btn-sm btn-outline" onclick="openShareModal()">📱 Show QR Code</button>
+          <button class="btn btn-sm btn-whatsapp" onclick="shareWhatsApp()">💬 Share on WhatsApp</button>
+        </div>
+      </div>
+
+      <div class="share-url-box">
+        <input type="text" id="public-quiz-url" readonly value="http://localhost:3000/">
+        <button id="btn-copy-url" class="btn btn-primary" onclick="copyPublicLink()">📋 Copy Public Link</button>
+      </div>
+      <div id="network-ips-container" class="network-ips-bar" style="display: none;"></div>
+    </section>
+
+    <!-- STATS COUNTERS GRID -->
+    <section class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-icon">👥</span>
+        <div class="stat-info">
+          <span class="stat-value" id="stat-registered">0</span>
+          <span class="stat-label">Total Registered</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-icon text-green">🟢</span>
+        <div class="stat-info">
+          <span class="stat-value" id="stat-active">0</span>
+          <span class="stat-label">Currently Active</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-icon text-blue">🏁</span>
+        <div class="stat-info">
+          <span class="stat-value" id="stat-submitted">0</span>
+          <span class="stat-label">Submitted</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-icon text-red">⚠️</span>
+        <div class="stat-info">
+          <span class="stat-value" id="stat-disconnected">0</span>
+          <span class="stat-label">Not Submitted / Disconnected</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-icon">📈</span>
+        <div class="stat-info">
+          <span class="stat-value" id="stat-avg">0.0</span>
+          <span class="stat-label">Average Score</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-icon">🏆</span>
+        <div class="stat-info">
+          <span class="stat-value" id="stat-high">0</span>
+          <span class="stat-label">Highest Score</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN DASHBOARD TABS -->
+    <nav class="admin-tabs">
+      <button class="tab-btn active" onclick="switchAdminTab('tab-leaderboard')">🏆 Live Leaderboard</button>
+      <button class="tab-btn" onclick="switchAdminTab('tab-questions')">🔑 Answer Key Manager</button>
+      <button class="tab-btn" onclick="switchAdminTab('tab-tiebreaker')">⚖️ Tie-Breaker</button>
+      <button class="tab-btn" onclick="switchAdminTab('tab-logs')">📜 Activity & Audit Logs</button>
+    </nav>
+
+    <!-- TAB 1: LIVE LEADERBOARD -->
+    <div id="tab-leaderboard" class="tab-content active">
+      <div class="card">
+        <div class="table-header-tools">
+          <h3>Live Participant Leaderboard</h3>
+          <input type="text" id="leaderboard-search" placeholder="Search by name or ID..." onkeyup="filterLeaderboard()">
+        </div>
+
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Participant Name</th>
+                <th>Participant ID</th>
+                <th>Answered</th>
+                <th>Total Score</th>
+                <th>Status</th>
+                <th>Submission Time</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: ANSWER KEY MANAGER -->
+    <div id="tab-questions" class="tab-content">
+      <div class="card">
+        <div class="table-header-tools">
+          <div>
+            <h3>Official Answer Key (80 Questions)</h3>
+            <span id="answer-key-lock-status" class="lock-tag">Status: Unlocked (Pre-Quiz Edit Allowed)</span>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Q#</th>
+                <th>Category</th>
+                <th>Accepted Answers (Comma Separated)</th>
+                <th>Marks</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="answer-key-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: TIE-BREAKER -->
+    <div id="tab-tiebreaker" class="tab-content">
+      <div class="card">
+        <h3>Tie-Breaker Manager</h3>
+        <p class="section-desc">Select participants with matching scores to create a tie-breaker round.</p>
+        
+        <form onsubmit="event.preventDefault(); handleCreateTieBreaker();">
+          <div class="form-group">
+            <label for="tb-title">Tie Breaker Session Title</label>
+            <input type="text" id="tb-title" value="Final 1st Place Tie Breaker" required>
+          </div>
+          <div class="form-group">
+            <label for="tb-participants">Tied Participant IDs (Comma separated)</label>
+            <input type="text" id="tb-participants" placeholder="e.g. P027, P045" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Create Tie-Breaker Session</button>
+        </form>
+
+        <div id="tie-breaker-list" style="margin-top: 24px;"></div>
+      </div>
+    </div>
+
+    <!-- TAB 4: AUDIT LOGS -->
+    <div id="tab-logs" class="tab-content">
+      <div class="card">
+        <h3>System & Admin Activity Logs</h3>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Admin</th>
+                <th>Action</th>
+                <th>Details</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="logs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PARTICIPANT DETAIL MODAL -->
+  <div id="modal-participant" class="modal-overlay" style="display: none;">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h3 id="modal-part-title">Participant Submission Review</h3>
+        <button class="close-btn" onclick="closeParticipantModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="part-info-banner">
+          <div>Participant: <strong id="modal-part-name">---</strong></div>
+          <div>ID: <strong id="modal-part-id">---</strong></div>
+          <div>Score: <strong id="modal-part-score">0 / 80</strong></div>
+          <div>Status: <strong id="modal-part-status">---</strong></div>
+        </div>
+
+        <h4>Question-by-Question Evaluation</h4>
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Q#</th>
+                <th>Category</th>
+                <th>Participant Answer</th>
+                <th>Correct Accepted Answers</th>
+                <th>Marks</th>
+                <th>Override</th>
+              </tr>
+            </thead>
+            <tbody id="modal-part-tbody"></tbody>
+          </table>
+        </div>
+
+        <h4 style="margin-top: 20px;">Manual Score Override Log</h4>
+        <div id="modal-override-log"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHARE LINK & QR MODAL -->
+  <div id="modal-share-quiz" class="modal-overlay" style="display: none;">
+    <div class="modal-box text-center" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 id="modal-share-title">🚀 Quiz is Live — Student Access Link</h3>
+        <button class="close-btn" onclick="closeShareModal()">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding-top: 10px;">
+        <p class="share-modal-desc" style="color: #475569; font-size: 14px; margin-bottom: 16px;">
+          Share this link with students to attend and answer quiz questions:
+        </p>
+
+        <div class="share-url-box" style="margin-bottom: 16px;">
+          <input type="text" id="modal-public-url" readonly value="http://localhost:3000/" style="font-size: 15px; font-weight: 700;">
+          <button id="btn-modal-copy-url" class="btn btn-primary" onclick="copyPublicLinkFromModal()">📋 Copy Link</button>
+        </div>
+
+        <div class="qr-code-box" style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px dashed #cbd5e1; margin-bottom: 16px;">
+          <img id="qr-code-img" src="" alt="Student Quiz QR Code" style="width: 180px; height: 180px; border-radius: 8px; border: 1px solid #e2e8f0; display: block; margin: 0 auto 8px auto;">
+          <span style="font-size: 12px; color: #64748b; font-weight: 600;">📱 Scan QR Code with Mobile Phone to Open Quiz</span>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-whatsapp btn-block" style="flex: 1;" onclick="shareWhatsApp()">💬 Share via WhatsApp</button>
+          <button class="btn btn-secondary" onclick="closeShareModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>
