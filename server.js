@@ -21,6 +21,20 @@ const wss = new WebSocket.Server({ server, path: '/ws' });
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Serve HTML pages explicitly for fail-safe production deployment
+app.get(['/', '/index.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get(['/participant', '/participant.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'participant.html'));
+});
+
+app.get(['/admin', '/admin.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Simple Auth Token Store for Admin
@@ -193,14 +207,7 @@ async function broadcastAdminStats() {
   }
 }
 
-// Express HTML Page Routes
-app.get(['/participant', '/participant.html'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'participant.html'));
-});
-app.get('/participant/*splat', (req, res, next) => {
-  if (req.path.startsWith('/api')) return next();
-  res.sendFile(path.join(__dirname, 'public', 'participant.html'));
-});
+
 
 // GET Server Info & Network Share URLs
 app.get('/api/server-info', (req, res) => {
