@@ -1197,14 +1197,16 @@ app.get('/api/admin/logs', requireAdmin, async (req, res) => {
 // Initialize DB and start server
 const PORT = process.env.PORT || 3000;
 
-initDB().then(() => {
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`===================================================`);
-    console.log(`Live Quiz Competition Server is running on port ${PORT}`);
-    console.log(`Participant UI: http://localhost:${PORT} or http://127.0.0.1:${PORT}`);
-    console.log(`Admin Dashboard: http://localhost:${PORT}/admin.html`);
-    console.log(`===================================================`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`===================================================`);
+  console.log(`Live Quiz Competition Server is running on port ${PORT}`);
+  console.log(`Participant UI: http://localhost:${PORT} or http://127.0.0.1:${PORT}`);
+  console.log(`Admin Dashboard: http://localhost:${PORT}/admin.html`);
+  console.log(`===================================================`);
+
+  initDB().then(() => {
+    console.log('Database initialized successfully.');
+  }).catch((err) => {
+    console.error('Database initialization error:', err);
   });
-}).catch((err) => {
-  console.error('Database initialization failed:', err);
 });

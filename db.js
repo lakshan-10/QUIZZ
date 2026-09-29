@@ -1,14 +1,27 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'quiz.db');
+let targetDbPath = process.env.DB_PATH || path.join(__dirname, 'quiz.db');
 
-const db = new sqlite3.Database(DB_PATH, (err) => {
+try {
+  const dbDir = path.dirname(targetDbPath);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not create directory for DB_PATH, falling back to local directory:', e.message);
+  targetDbPath = path.join(__dirname, 'quiz.db');
+}
+
+const db = new sqlite3.Database(targetDbPath, (err) => {
   if (err) {
-    console.error('Error opening database:', err);
+    console.error('Error opening database at', targetDbPath, ':', err.message);
   } else {
-    console.log('Connected to persistent SQLite database at', DB_PATH);
-    db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
+    console.log('Connected to persistent SQLite database at', targetDbPath);
+    try {
+      db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
+    } catch (e) {}
   }
 });
 
