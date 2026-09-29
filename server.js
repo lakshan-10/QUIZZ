@@ -194,12 +194,12 @@ async function broadcastAdminStats() {
 }
 
 // Express HTML Page Routes
-app.get('/participant', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.get(['/participant', '/participant.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'participant.html'));
 });
 app.get('/participant/*splat', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'participant.html'));
 });
 
 // GET Server Info & Network Share URLs
