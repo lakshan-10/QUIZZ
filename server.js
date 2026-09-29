@@ -216,9 +216,11 @@ app.get('/api/server-info', (req, res) => {
     }
   }
 
-  const hostHeader = req.headers.host;
-  const protocol = req.protocol || 'http';
-  const primaryUrl = hostHeader ? `${protocol}://${hostHeader}/participant` : `http://localhost:${port}/participant`;
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const hostHeader = req.headers['x-forwarded-host'] || req.headers.host;
+  const primaryUrl = process.env.RENDER_EXTERNAL_URL
+    ? `${process.env.RENDER_EXTERNAL_URL}/participant`
+    : (hostHeader ? `${protocol}://${hostHeader}/participant` : `http://localhost:${port}/participant`);
 
   res.json({
     primary_url: primaryUrl,

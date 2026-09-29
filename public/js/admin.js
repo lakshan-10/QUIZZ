@@ -242,21 +242,33 @@ function filterLeaderboard() {
 
 let currentPublicUrl = window.location.origin + '/participant';
 
+function getParticipantUrl() {
+  return window.location.origin + '/participant';
+}
+
 async function fetchServerInfo() {
+  currentPublicUrl = getParticipantUrl();
+
+  const input = document.getElementById('public-quiz-url');
+  const modalInput = document.getElementById('modal-public-url');
+  if (input) input.value = currentPublicUrl;
+  if (modalInput) modalInput.value = currentPublicUrl;
+
   try {
     const res = await fetch('/api/server-info');
     if (res.ok) {
       const data = await res.json();
-      currentPublicUrl = data.primary_url || (window.location.origin + '/participant');
       
-      const input = document.getElementById('public-quiz-url');
-      const modalInput = document.getElementById('modal-public-url');
-      if (input) input.value = currentPublicUrl;
-      if (modalInput) modalInput.value = currentPublicUrl;
+      // If server provides a valid non-localhost URL (e.g. Render external URL), use it if preferred
+      if (data.primary_url && !data.primary_url.includes('localhost') && !data.primary_url.includes('127.0.0.1')) {
+        currentPublicUrl = data.primary_url;
+        if (input) input.value = currentPublicUrl;
+        if (modalInput) modalInput.value = currentPublicUrl;
+      }
 
       const ipsContainer = document.getElementById('network-ips-container');
       if (ipsContainer && Array.isArray(data.network_urls) && data.network_urls.length > 0) {
-        let html = '<span style="font-weight:700;">🌐 Network IPs (For local Wi-Fi devices):</span> ';
+        let html = '<span style="font-weight:700;">🌐 Local Wi-Fi IPs:</span> ';
         for (const netUrl of data.network_urls) {
           html += `<span class="network-ip-tag" onclick="selectPublicUrl('${escapeHtml(netUrl)}')">${escapeHtml(netUrl)}</span> `;
         }
@@ -265,7 +277,7 @@ async function fetchServerInfo() {
       }
     }
   } catch (e) {
-    currentPublicUrl = window.location.origin + '/participant';
+    currentPublicUrl = getParticipantUrl();
     const input = document.getElementById('public-quiz-url');
     if (input) input.value = currentPublicUrl;
   }
