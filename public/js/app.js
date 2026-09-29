@@ -496,30 +496,38 @@ function confirmFinalSubmission() {
 
 async function fetchResults() {
   try {
-    const res = await fetch(`/api/results?participant_id=${encodeURIComponent(participantId)}&session_id=${encodeURIComponent(sessionId)}`);
+    const token = sessionId || participantId;
+    const res = await fetch(`/api/participant/result/${encodeURIComponent(token)}`);
     const data = await res.json();
 
-    if (!res.ok) {
+    if (!res.ok || !data.results_released) {
+      if (data.participant_name) {
+        document.getElementById('sub-display-name').textContent = data.participant_name;
+        document.getElementById('sub-display-id').textContent = data.participant_id;
+      }
       showScreen('screen-submitted');
       return;
     }
 
     document.getElementById('res-user-name').textContent = data.participant_name;
     document.getElementById('res-user-id').textContent = data.participant_id;
+    const statusElem = document.getElementById('res-user-status');
+    if (statusElem) statusElem.textContent = data.status || 'Submitted';
+    
     document.getElementById('res-total-score').textContent = data.total_score;
 
-    const pct = ((data.total_score / 80) * 100).toFixed(1);
-    document.getElementById('res-score-percent').textContent = `${pct}% Correct`;
+    const pctStr = data.percentage || `${(((data.total_score || 0) / (data.max_score || 80)) * 100).toFixed(1)}%`;
+    document.getElementById('res-score-percent').textContent = `Percentage: ${pctStr}`;
 
     const tbody = document.getElementById('results-tbody');
     tbody.innerHTML = '';
 
-    for (const row of data.breakdown) {
+    for (const row of (data.breakdown || [])) {
       const tr = document.createElement('tr');
       tr.className = row.marks === 1 ? 'correct-row' : 'wrong-row';
 
       tr.innerHTML = `
-        <td><strong>Q${row.question_number}</strong> (${row.category})</td>
+        <td><strong>Q${row.question_number}</strong> (${escapeHtml(row.category)})</td>
         <td>${escapeHtml(row.submitted_answer) || '<em style="color:#94a3b8;">Blank</em>'}</td>
         <td><strong>${escapeHtml(row.correct_answer)}</strong></td>
         <td><span class="badge-mark badge-${row.marks}">${row.marks}</span></td>

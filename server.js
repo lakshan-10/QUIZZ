@@ -193,9 +193,14 @@ async function broadcastAdminStats() {
   }
 }
 
-// ----------------------------------------------------
-// PUBLIC PARTICIPANT API ROUTES
-// ----------------------------------------------------
+// Express HTML Page Routes
+app.get('/participant', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+app.get('/participant/*splat', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // GET Server Info & Network Share URLs
 app.get('/api/server-info', (req, res) => {
@@ -206,14 +211,14 @@ app.get('/api/server-info', (req, res) => {
   for (const name of Object.keys(interfaces)) {
     for (const net of interfaces[name]) {
       if (net.family === 'IPv4' && !net.internal) {
-        addresses.push(`http://${net.address}:${port}/`);
+        addresses.push(`http://${net.address}:${port}/participant`);
       }
     }
   }
 
   const hostHeader = req.headers.host;
   const protocol = req.protocol || 'http';
-  const primaryUrl = hostHeader ? `${protocol}://${hostHeader}/` : `http://localhost:${port}/`;
+  const primaryUrl = hostHeader ? `${protocol}://${hostHeader}/participant` : `http://localhost:${port}/participant`;
 
   res.json({
     primary_url: primaryUrl,
@@ -238,8 +243,8 @@ app.get('/api/quiz-state', async (req, res) => {
   }
 });
 
-// Participant Registration
-app.post('/api/register', async (req, res) => {
+// Participant Registration Handler Function
+async function handleRegisterRequest(req, res) {
   const name = req.body.participant_name || req.body.name;
   const pId = req.body.participant_id;
 
@@ -298,7 +303,10 @@ app.post('/api/register', async (req, res) => {
     console.error('Registration error:', err);
     return res.status(500).json({ error: 'Registration failed server-side.' });
   }
-});
+}
+
+app.post('/api/register', handleRegisterRequest);
+app.post('/api/participant/start', handleRegisterRequest);
 
 // Helper to authenticate participant requests
 async function authParticipant(req) {
@@ -318,8 +326,7 @@ async function authParticipant(req) {
   return participant;
 }
 
-// Ultra-Fast Real-Time Asynchronous Answer Save (< 1ms execution)
-app.post('/api/save-answer', async (req, res) => {
+async function handleSaveAnswerRequest(req, res) {
   const participant = await authParticipant(req);
   if (!participant) {
     return res.status(401).json({ error: 'Unauthorized participant session.' });
@@ -395,7 +402,10 @@ app.post('/api/save-answer', async (req, res) => {
     console.error('Error saving answer:', err);
     return res.status(500).json({ error: 'Failed to save answer.' });
   }
-});
+}
+
+app.post('/api/save-answer', handleSaveAnswerRequest);
+app.post('/api/participant/answer', handleSaveAnswerRequest);
 
 // Batch Sync for offline reconnected queue
 app.post('/api/batch-sync', async (req, res) => {
@@ -499,8 +509,7 @@ app.get('/api/my-progress', async (req, res) => {
   }
 });
 
-// Instant Sub-Millisecond Final Quiz Submission (< 1ms response)
-app.post('/api/submit-quiz', async (req, res) => {
+async function handleSubmitQuizRequest(req, res) {
   const participant = await authParticipant(req);
   if (!participant) {
     return res.status(401).json({ error: 'Unauthorized participant session.' });
@@ -599,7 +608,10 @@ app.post('/api/submit-quiz', async (req, res) => {
     console.error('Error in final quiz submission:', err);
     return res.status(500).json({ error: 'Failed to submit quiz.' });
   }
-});
+}
+
+app.post('/api/submit-quiz', handleSubmitQuizRequest);
+app.post('/api/participant/submit', handleSubmitQuizRequest);
 
 // Participant Result Retrieval (Only accessible AFTER Admin releases results)
 app.get('/api/results', async (req, res) => {
@@ -639,6 +651,87 @@ app.get('/api/results', async (req, res) => {
       participant_id: participant.participant_id,
       total_score: participant.total_score,
       max_score: 80,
+      breakdown
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch results.' });
+  }
+});
+
+// GET /api/participant/questions (Excludes accepted_answers for security)
+app.get('/api/participant/questions', async (req, res) => {
+  try {
+    const questions = await allAsync(`SELECT question_number, category, marks FROM questions ORDER BY question_number ASC`);
+    return res.json({ questions });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch questions.' });
+  }
+});
+
+// GET /api/participant/result/:token (Secure token-based participant result)
+app.get('/api/participant/result/:token', async (req, res) => {
+  const token = req.params.token;
+  if (!token) return res.status(400).json({ error: 'Participant session token required.' });
+
+  try {
+    const participant = await getAsync(
+      `SELECT * FROM participants WHERE session_id = ? OR session_token = ? OR participant_id = ?`,
+      [token, token, token]
+    );
+
+    if (!participant) {
+      return res.status(404).json({ error: 'Participant session not found.' });
+    }
+
+    const resultsRow = await getAsync(`SELECT value FROM quiz_settings WHERE key = 'results_released'`);
+    const isReleased = (resultsRow && resultsRow.value === '1');
+
+    const maxMarksRow = await getAsync(`SELECT SUM(marks) as max_score FROM questions`);
+    const maxScore = (maxMarksRow && maxMarksRow.max_score) ? maxMarksRow.max_score : 80;
+
+    if (!isReleased) {
+      return res.json({
+        participant_name: participant.participant_name || participant.name,
+        participant_id: participant.participant_id,
+        status: participant.status,
+        submitted_at: participant.submitted_at,
+        results_released: false,
+        message: 'Your quiz has been submitted successfully. Results will be released by the administrator.'
+      });
+    }
+
+    const questions = await allAsync(`SELECT question_number, category, accepted_answers, marks FROM questions ORDER BY question_number ASC`);
+    const responses = await allAsync(`SELECT question_number, submitted_answer, normalized_answer, is_correct, marks FROM responses WHERE participant_id = ?`, [participant.participant_id]);
+
+    const respMap = {};
+    for (const r of responses) {
+      respMap[r.question_number] = r;
+    }
+
+    const breakdown = questions.map(q => {
+      const userResp = respMap[q.question_number];
+      const accList = JSON.parse(q.accepted_answers || '[]');
+      return {
+        question_number: q.question_number,
+        category: q.category,
+        submitted_answer: userResp ? userResp.submitted_answer : '',
+        correct_answer: accList.join(' / '),
+        marks: userResp ? userResp.marks : 0
+      };
+    });
+
+    const totalScore = participant.total_score || 0;
+    const percentageVal = ((totalScore / maxScore) * 100).toFixed(1);
+
+    return res.json({
+      participant_name: participant.participant_name || participant.name,
+      participant_id: participant.participant_id,
+      status: participant.status,
+      submitted_at: participant.submitted_at,
+      total_score: totalScore,
+      max_score: maxScore,
+      percentage: `${percentageVal}%`,
+      results_released: true,
       breakdown
     });
   } catch (err) {
@@ -911,6 +1004,33 @@ app.post('/api/admin/override-score', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Error executing manual score override:', err);
     return res.status(500).json({ error: 'Score override failed.' });
+  }
+});
+
+// Admin Single Participant Reset Endpoint
+app.post('/api/admin/reset-participant', requireAdmin, async (req, res) => {
+  const { participant_id } = req.body;
+  if (!participant_id) {
+    return res.status(400).json({ error: 'Participant ID is required.' });
+  }
+
+  try {
+    await runAsync(`DELETE FROM responses WHERE participant_id = ?`, [participant_id]);
+    await runAsync(
+      `UPDATE participants SET status = 'Active', total_score = 0, submitted_at = NULL WHERE participant_id = ?`,
+      [participant_id]
+    );
+
+    await runAsync(
+      `INSERT INTO activity_logs (admin, action, details) VALUES (?, ?, ?)`,
+      ['admin', 'RESET_PARTICIPANT', `Reset quiz answers and status for participant ${participant_id}`]
+    );
+
+    setImmediate(broadcastAdminStats);
+    return res.json({ success: true, message: `Participant ${participant_id} reset successfully.` });
+  } catch (err) {
+    console.error('Error resetting participant:', err);
+    return res.status(500).json({ error: 'Failed to reset participant.' });
   }
 });
 

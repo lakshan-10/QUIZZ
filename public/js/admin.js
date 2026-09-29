@@ -183,22 +183,52 @@ function renderLeaderboard(list) {
 
     const rankClass = item.rank <= 3 ? `rank-${item.rank}` : '';
     const statusClass = `badge-${(item.status || 'Active').toLowerCase()}`;
+    const submittedTimeStr = item.submitted_at ? new Date(item.submitted_at).toLocaleString() : '-';
 
     tr.innerHTML = `
       <td><span class="rank-pill ${rankClass}">${item.rank}</span></td>
-      <td><strong>${escapeHtml(item.participant_name || item.name)}</strong></td>
       <td><code>${escapeHtml(item.participant_id)}</code></td>
+      <td><strong>${escapeHtml(item.participant_name || item.name)}</strong></td>
       <td>${item.answered_count || 0} / 80</td>
       <td><strong style="font-size:16px; color:#2563eb;">${item.total_score}</strong> / 80</td>
       <td><span class="badge-status ${statusClass}">${(item.status || 'Active').toUpperCase()}</span></td>
-      <td>${item.submitted_at ? new Date(item.submitted_at).toLocaleTimeString() : 'In Progress'}</td>
-      <td>
+      <td>${submittedTimeStr}</td>
+      <td style="white-space: nowrap;">
         <button class="btn btn-sm btn-primary" onclick="openParticipantReview('${escapeHtml(item.participant_id)}')">
-          Inspect Review
+          🔍 View Answers
+        </button>
+        <button class="btn btn-sm btn-warning" style="margin-left: 4px;" onclick="handleResetParticipant('${escapeHtml(item.participant_id)}')">
+          🔄 Reset
         </button>
       </td>
     `;
     tbody.appendChild(tr);
+  }
+}
+
+async function handleResetParticipant(participantId) {
+  if (!confirm(`⚠️ Are you sure you want to reset answers and score for participant ID: ${participantId}? This will allow them to re-take the quiz.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetchAdmin('/api/admin/reset-participant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ participant_id: participantId })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Failed to reset participant.');
+      return;
+    }
+
+    fetchDashboardData();
+  } catch (err) {
+    if (err.message !== 'Unauthorized') {
+      alert('Network error while resetting participant.');
+    }
   }
 }
 
@@ -207,17 +237,17 @@ function filterLeaderboard() {
 }
 
 // ----------------------------------------------------
-// 3. QUIZ CONTROLS
+// 3. QUIZ CONTROLS & PUBLIC LINK
 // ----------------------------------------------------
 
-let currentPublicUrl = window.location.origin + '/';
+let currentPublicUrl = window.location.origin + '/participant';
 
 async function fetchServerInfo() {
   try {
     const res = await fetch('/api/server-info');
     if (res.ok) {
       const data = await res.json();
-      currentPublicUrl = data.primary_url || (window.location.origin + '/');
+      currentPublicUrl = data.primary_url || (window.location.origin + '/participant');
       
       const input = document.getElementById('public-quiz-url');
       const modalInput = document.getElementById('modal-public-url');
@@ -226,7 +256,7 @@ async function fetchServerInfo() {
 
       const ipsContainer = document.getElementById('network-ips-container');
       if (ipsContainer && Array.isArray(data.network_urls) && data.network_urls.length > 0) {
-        let html = '<span style="font-weight:700;">🌐 Network IPs (For devices on same Wi-Fi):</span> ';
+        let html = '<span style="font-weight:700;">🌐 Network IPs (For local Wi-Fi devices):</span> ';
         for (const netUrl of data.network_urls) {
           html += `<span class="network-ip-tag" onclick="selectPublicUrl('${escapeHtml(netUrl)}')">${escapeHtml(netUrl)}</span> `;
         }
@@ -235,7 +265,7 @@ async function fetchServerInfo() {
       }
     }
   } catch (e) {
-    currentPublicUrl = window.location.origin + '/';
+    currentPublicUrl = window.location.origin + '/participant';
     const input = document.getElementById('public-quiz-url');
     if (input) input.value = currentPublicUrl;
   }
@@ -252,40 +282,64 @@ function selectPublicUrl(url) {
 
 function copyPublicLink() {
   const urlInput = document.getElementById('public-quiz-url');
-  const targetUrl = urlInput ? urlInput.value : currentPublicUrl;
-  navigator.clipboard.writeText(targetUrl).then(() => {
-    const btn = document.getElementById('btn-copy-url');
-    if (btn) {
-      const origText = btn.textContent;
-      btn.textContent = '✓ Copied to Clipboard!';
-      btn.style.background = '#16a34a';
-      setTimeout(() => {
-        btn.textContent = origText;
-        btn.style.background = '';
-      }, 2500);
-    }
-  }).catch(() => {
-    alert('Public Link: ' + targetUrl);
-  });
+  const targetUrl = urlInput && urlInput.value ? urlInput.value : (window.location.origin + '/participant');
+  
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(targetUrl).then(() => {
+      showCopySuccessBtn('btn-copy-url');
+    }).catch(() => {
+      fallbackCopy(targetUrl, 'btn-copy-url');
+    });
+  } else {
+    fallbackCopy(targetUrl, 'btn-copy-url');
+  }
 }
 
 function copyPublicLinkFromModal() {
   const urlInput = document.getElementById('modal-public-url');
-  const targetUrl = urlInput ? urlInput.value : currentPublicUrl;
-  navigator.clipboard.writeText(targetUrl).then(() => {
-    const btn = document.getElementById('btn-modal-copy-url');
-    if (btn) {
-      const origText = btn.textContent;
-      btn.textContent = '✓ Copied to Clipboard!';
-      btn.style.background = '#16a34a';
-      setTimeout(() => {
-        btn.textContent = origText;
-        btn.style.background = '';
-      }, 2500);
-    }
-  }).catch(() => {
-    alert('Public Link: ' + targetUrl);
-  });
+  const targetUrl = urlInput && urlInput.value ? urlInput.value : (window.location.origin + '/participant');
+  
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(targetUrl).then(() => {
+      showCopySuccessBtn('btn-modal-copy-url');
+    }).catch(() => {
+      fallbackCopy(targetUrl, 'btn-modal-copy-url');
+    });
+  } else {
+    fallbackCopy(targetUrl, 'btn-modal-copy-url');
+  }
+}
+
+function showCopySuccessBtn(btnId) {
+  const btn = document.getElementById(btnId);
+  if (btn) {
+    const origText = btn.textContent;
+    btn.textContent = 'Participant link copied!';
+    btn.style.background = '#16a34a';
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.style.background = '';
+    }, 2500);
+  }
+}
+
+function fallbackCopy(text, btnId) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  document.body.appendChild(area);
+  area.select();
+  try {
+    document.execCommand('copy');
+    showCopySuccessBtn(btnId);
+  } catch (e) {
+    alert('Participant link: ' + text);
+  }
+  document.body.removeChild(area);
+}
+
+function openParticipantLink() {
+  const targetUrl = document.getElementById('public-quiz-url')?.value || (window.location.origin + '/participant');
+  window.open(targetUrl, '_blank');
 }
 
 function openShareModal() {

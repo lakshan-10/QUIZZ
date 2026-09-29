@@ -161,17 +161,18 @@
     <div id="screen-results" class="screen">
       <div class="card results-card">
         <div class="results-header">
-          <h2>QUIZ COMPLETED</h2>
-          <p class="user-detail">
-            Participant Name: <strong id="res-user-name">---</strong><br>
-            Participant ID: <strong id="res-user-id">---</strong>
-          </p>
+          <h2>Quiz Completed!</h2>
+          <div class="user-detail-box" style="margin-top: 12px; font-size: 14px; color: var(--text-main);">
+            <p><strong>Participant Name:</strong> <span id="res-user-name">---</span></p>
+            <p><strong>Participant ID:</strong> <span id="res-user-id">---</span></p>
+            <p><strong>Status:</strong> <span id="res-user-status" class="badge-status badge-submitted" style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:12px; font-weight:600;">Submitted</span></p>
+          </div>
         </div>
 
-        <div class="score-banner">
+        <div class="score-banner" style="margin-top: 16px;">
           <span class="score-label">YOUR FINAL SCORE</span>
           <div class="score-val"><span id="res-total-score">0</span> <span class="score-max">/ 80</span></div>
-          <div class="score-percent" id="res-score-percent">0%</div>
+          <div class="score-percent" id="res-score-percent" style="font-weight:700; font-size:16px;">0%</div>
         </div>
 
         <h3>Answer Review</h3>

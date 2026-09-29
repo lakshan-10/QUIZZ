@@ -74,14 +74,14 @@
       </div>
     </section>
 
-    <!-- SHAREABLE STUDENT QUIZ LINK CARD -->
+    <!-- SHAREABLE PARTICIPANT QUIZ LINK CARD -->
     <section class="share-panel card">
       <div class="share-header">
         <div class="share-title-group">
           <span class="share-badge-icon">🌐</span>
           <div>
-            <h4>Public Student Quiz Link</h4>
-            <p class="share-subtitle">Share this URL with students so they can join and answer questions</p>
+            <h4>PARTICIPANT QUIZ LINK</h4>
+            <p class="share-subtitle">Share this public link with participants so they can join and take the quiz</p>
           </div>
         </div>
         <div class="share-top-actions">
@@ -91,8 +91,9 @@
       </div>
 
       <div class="share-url-box">
-        <input type="text" id="public-quiz-url" readonly value="http://localhost:3000/">
-        <button id="btn-copy-url" class="btn btn-primary" onclick="copyPublicLink()">📋 Copy Public Link</button>
+        <input type="text" id="public-quiz-url" readonly value="">
+        <button id="btn-copy-url" class="btn btn-primary" onclick="copyPublicLink()">📋 Copy Link</button>
+        <button id="btn-open-url" class="btn btn-success" onclick="openParticipantLink()">🔗 Open Quiz</button>
       </div>
       <div id="network-ips-container" class="network-ips-bar" style="display: none;"></div>
     </section>
@@ -150,17 +151,17 @@
 
     <!-- MAIN DASHBOARD TABS -->
     <nav class="admin-tabs">
-      <button class="tab-btn active" onclick="switchAdminTab('tab-leaderboard')">🏆 Live Leaderboard</button>
+      <button class="tab-btn active" onclick="switchAdminTab('tab-leaderboard')">👥 Participants & Leaderboard</button>
       <button class="tab-btn" onclick="switchAdminTab('tab-questions')">🔑 Answer Key Manager</button>
       <button class="tab-btn" onclick="switchAdminTab('tab-tiebreaker')">⚖️ Tie-Breaker</button>
       <button class="tab-btn" onclick="switchAdminTab('tab-logs')">📜 Activity & Audit Logs</button>
     </nav>
 
-    <!-- TAB 1: LIVE LEADERBOARD -->
+    <!-- TAB 1: PARTICIPANTS & LEADERBOARD -->
     <div id="tab-leaderboard" class="tab-content active">
       <div class="card">
         <div class="table-header-tools">
-          <h3>Live Participant Leaderboard</h3>
+          <h3>Participants Management & Live Leaderboard</h3>
           <input type="text" id="leaderboard-search" placeholder="Search by name or ID..." onkeyup="filterLeaderboard()">
         </div>
 
@@ -169,13 +170,13 @@
             <thead>
               <tr>
                 <th>Rank</th>
-                <th>Participant Name</th>
                 <th>Participant ID</th>
+                <th>Participant Name</th>
                 <th>Answered</th>
                 <th>Total Score</th>
                 <th>Status</th>
-                <th>Submission Time</th>
-                <th>Action</th>
+                <th>Submitted At</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="leaderboard-tbody"></tbody>
