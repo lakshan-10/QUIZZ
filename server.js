@@ -10,6 +10,7 @@ const {
   getAsync,
   allAsync,
   normalizeAnswer,
+  evaluateAnswer,
   initDB,
   recalculateParticipantScore
 } = require('./db');
@@ -369,19 +370,9 @@ async function handleSaveAnswerRequest(req, res) {
 
     const acceptedAnswers = JSON.parse(question.accepted_answers || '[]');
     const normalizedInput = normalizeAnswer(submitted_answer);
-
-    let isCorrect = 0;
-    let earnedMarks = 0;
-
-    if (normalizedInput !== '') {
-      for (const accepted of acceptedAnswers) {
-        if (normalizeAnswer(accepted) === normalizedInput) {
-          isCorrect = 1;
-          earnedMarks = question.marks || 1;
-          break;
-        }
-      }
-    }
+    const evalResult = evaluateAnswer(submitted_answer, acceptedAnswers, question.marks || 1);
+    const isCorrect = evalResult.isCorrect;
+    const earnedMarks = evalResult.marks;
 
     await runAsync(
       `INSERT INTO responses (participant_id, question_number, submitted_answer, normalized_answer, is_correct, marks, submitted_at)
@@ -563,16 +554,9 @@ async function handleSubmitQuizRequest(req, res) {
         if (question) {
           const acceptedAnswers = JSON.parse(question.accepted_answers || '[]');
           const normalizedInput = normalizeAnswer(userAns);
-          let isCorrect = 0, earnedMarks = 0;
-          if (normalizedInput !== '') {
-            for (const accepted of acceptedAnswers) {
-              if (normalizeAnswer(accepted) === normalizedInput) {
-                isCorrect = 1; earnedMarks = question.marks || 1; break;
-              }
-            }
-          }
+          const evalResult = evaluateAnswer(userAns, acceptedAnswers, question.marks || 1);
           valueRows.push('(?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)');
-          params.push(participant.participant_id, qNum, userAns, normalizedInput, isCorrect, earnedMarks);
+          params.push(participant.participant_id, qNum, userAns, normalizedInput, evalResult.isCorrect, evalResult.marks);
         }
       }
 
