@@ -2,6 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
+let db;
 let targetDbPath = process.env.DB_PATH || path.join(__dirname, 'quiz.db');
 
 try {
@@ -14,11 +15,18 @@ try {
   targetDbPath = path.join(__dirname, 'quiz.db');
 }
 
-const db = new sqlite3.Database(targetDbPath, (err) => {
+db = new sqlite3.Database(targetDbPath, (err) => {
   if (err) {
-    console.error('Error opening database at', targetDbPath, ':', err.message);
+    console.error('Failed to open database at', targetDbPath, ':', err.message);
+    const fallbackPath = path.join(__dirname, 'quiz.db');
+    console.log('Using local fallback database at', fallbackPath);
+    db = new sqlite3.Database(fallbackPath, (err2) => {
+      if (!err2) {
+        try { db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;'); } catch (e) {}
+      }
+    });
   } else {
-    console.log('Connected to persistent SQLite database at', targetDbPath);
+    console.log('Connected to SQLite database at', targetDbPath);
     try {
       db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
     } catch (e) {}
@@ -378,7 +386,8 @@ async function initDB() {
 
         resolve();
       } catch (err) {
-        reject(err);
+        console.error('initDB non-fatal error:', err);
+        resolve();
       }
     });
   });
