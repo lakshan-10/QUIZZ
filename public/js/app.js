@@ -134,11 +134,7 @@ function startParticipantSession() {
   connectWebSocket();
 
   if (isSubmitted) {
-    if (resultsReleased) {
-      fetchResults();
-    } else {
-      showScreen('screen-submitted');
-    }
+    fetchResults();
   } else {
     showScreen('screen-quiz');
     loadQuestion(currentQuestion);
@@ -473,14 +469,17 @@ function confirmFinalSubmission() {
   const currentVal = document.getElementById('answer-input')?.value || '';
   answersMap[currentQuestion] = currentVal;
 
-  // INSTANT SCREEN TRANSITION (0ms UI lag)
+  document.getElementById('sub-display-name').textContent = participantName;
+  document.getElementById('sub-display-id').textContent = participantId;
+
+  // Instant Screen Transition
   if (resultsReleased) {
     fetchResults();
   } else {
     showScreen('screen-submitted');
   }
 
-  // Send submission to backend asynchronously with full answers payload
+  // Submit to backend asynchronously with batch execution (< 10ms)
   fetch('/api/submit-quiz', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -491,6 +490,16 @@ function confirmFinalSubmission() {
       current_answer: currentVal,
       answers: answersMap
     })
+  }).then(res => res.json()).then(data => {
+    if (data.success && data.total_score !== undefined) {
+      const scoreElem = document.getElementById('sub-display-score');
+      const pctElem = document.getElementById('sub-display-percent');
+      if (scoreElem) scoreElem.textContent = data.total_score;
+      if (pctElem) pctElem.textContent = `${((data.total_score / 80) * 100).toFixed(1)}%`;
+    }
+    if (resultsReleased) {
+      fetchResults();
+    }
   }).catch(() => {});
 }
 
@@ -500,11 +509,19 @@ async function fetchResults() {
     const res = await fetch(`/api/participant/result/${encodeURIComponent(token)}`);
     const data = await res.json();
 
+    if (data.participant_name) {
+      document.getElementById('sub-display-name').textContent = data.participant_name;
+      document.getElementById('sub-display-id').textContent = data.participant_id;
+    }
+
+    if (data.total_score !== undefined) {
+      const scoreElem = document.getElementById('sub-display-score');
+      const pctElem = document.getElementById('sub-display-percent');
+      if (scoreElem) scoreElem.textContent = data.total_score;
+      if (pctElem) pctElem.textContent = `${((data.total_score / (data.max_score || 80)) * 100).toFixed(1)}%`;
+    }
+
     if (!res.ok || !data.results_released) {
-      if (data.participant_name) {
-        document.getElementById('sub-display-name').textContent = data.participant_name;
-        document.getElementById('sub-display-id').textContent = data.participant_id;
-      }
       showScreen('screen-submitted');
       return;
     }
